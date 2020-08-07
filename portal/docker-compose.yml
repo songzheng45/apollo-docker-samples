@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+
+    apollo-portal:
+        image: apolloconfig/apollo-portal:1.7.0
+        container_name: apollo-portal
+        restart: always
+        environment:
+            SPRING_DATASOURCE_URL: "jdbc:mysql://portaldb:3306/ApolloPortalDB?characterEncoding=utf8"
+            SPRING_DATASOURCE_USERNAME: root 
+            SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+        volumes:
+            - /tmp/apollo-logs/portal:/opt/logs
+        ports:
+            - 8170:8070
+        depends_on:
+            - apollo-portaldb
+        networks:
+            - apollo
+
+    apollo-portaldb:
+        container_name: apollo-portaldb
+        build:
+            context: mysql
+        command: [
+            '--default-authentication-plugin=mysql_native_password',
+            '--character-set-server=utf8mb4',
+            '--collation-server=utf8mb4_unicode_ci'
+        ]
+        restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+        volumes:
+            - ../portaldb/data:/var/lib/mysql:z
+        security_opt:
+            - seccomp:unconfined
+        ports:
+            - 23306:3306
+        networks:
+            apollo:
+                aliases:
+                    - portaldb
+
+
+networks:
+    apollo:
+        driver: bridge
