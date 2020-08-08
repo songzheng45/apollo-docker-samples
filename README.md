@@ -1,14 +1,20 @@
-# Apollo Docker Samples
+# Apollo Docker 部署踩坑指南
 
-> 参考Apollo官方[分布式部署指南][1], 然后基于 docker-compose的部署指南.
+> 本示例是参考Apollo官方[分布式部署指南][1], 然后基于 docker-compose的部署指南.
 >
-> Portal 是独立部署, 官方是推荐在生产环境部署,然后统一管理DEV, FAT, UAT, PRO 4个环境的配置, 每个环境独立部署一套 ConfigService, 保存各自的配置内容.
->
-> 顺序是：1. 部署 configService， 2. 部署 portal
 
+Apollo 架构模块交互图：
 
+![Apollo架构模块](https://github.com/ctripcorp/apollo/raw/master/doc/images/overall-architecture.png)
 
-## ConfigService
+Portal 是独立部署, 文档中推荐在生产环境部署,然后统一管理DEV, FAT, UAT, PRO 等环境的配置, 每个环境独立部署一套 Config Service、Admin Service 和 ConfigDb, 保存各自的配置.
+
+部署顺序：
+
+1. Config Service 和 Admin Service
+2. Portal
+
+## 部署 Config Service 和 Admin Service
 
 ### 准备
 
@@ -16,15 +22,21 @@
 
 `.env`定义 MySQL root密码和当前服务器 IP。
 
-必须将 `THIS_SERVER_IP`指定为当前机器的IP，否则会导致portal 无法连接。这里采用的是[分布式部署指南#14-网络策略][3]最后一种方式，即通过系统环境变量直接指定要注册到 Meta Server 的IP+端口。
+必须将 `THIS_SERVER_IP`指定为当前机器的IP，这里采用的是[分布式部署指南#14-网络策略][3]最后一种方式，即通过系统环境变量直接指定要注册到 Meta Server 的IP+端口。
 
-> 由于 configService 和 adminService 都是跑在容器里，自动注册到 eureka 的ip是容器内ip，比如` 172.19.0.3`，这就导致 portal 无法访问，因此需要修改 `THIS_SERVER_IP`，当然该IP不要暴露在公网中。
+> 由于 Config Service 和 Admin Service 都是跑在容器里，自动注册到 eureka 的ip是容器内ip，比如` 172.19.0.3`，这就导致 portal 和客户端通过 Meta Server 获取IP后无法直接访问，因此需要修改 `THIS_SERVER_IP`，当然该IP不要暴露在公网中。
 
 
 
 ### 启动
 
-命令行下进入`config`目录，执行 `build.bat`(windows) 或`sh ./build.sh`(linux)，启动后要稍等1分钟左右，等待 configService 启动。
+命令行下进入`config`目录，执行 `build.bat`(windows) 或`sh ./build.sh`(linux)，将分别构建并启动以下容器:
+
+- apollo-configservice
+- apollo-adminservice 
+- apollo-configdb
+
+apollo-configservice 启动需要1分钟左右，可观察日志等待完全启动。
 
 然后连接 MySQL （端口号 13306），执行以下 SQL 脚本：
 
@@ -35,37 +47,42 @@ UPDATE ServerConfig SET `Value` = 'http://{THIS_SERVER_IP}:8180/eureka/' WHERE `
 
 ```
 
-> 需要修改 `THIS_SERVER_IP`，作用是为了让 adminService 知道实际的 eureka 服务注册地址。
+> 需要修改 `THIS_SERVER_IP`，这一步作用是为了让 AdminService 知道实际的 eureka 服务注册地址。
 
-然后重启 adminService 容器。
+然后重启 apollo-adminservice 容器，观察日志确保没有错误，并注册成功。
 
-最后访问`http://{THIS_SERVER_IP}:8180`来查看服务注册情况。
+最后访问`http://{THIS_SERVER_IP}:8180`来查看 ConfigService 和 AdminService 服务注册情况。
 
-或者  `http://{THIS_SERVER_IP}:8180/services/config`和`http://{THIS_SERVER_IP}:8180/services/admin` 分别检查 configService 和 adminService 状态。
+或者  `http://{THIS_SERVER_IP}:8180/services/config`和`http://{THIS_SERVER_IP}:8180/services/admin` 分别检查 ConfigService 和 AdminService 状态。
 
 
 
-## Portal
+## 部署 Portal
 
-进入 portal 目录, 执行 `sh ./build.sh` 构建并启动 portal web服务和DB的容器.
+### 启动
 
-登录网址:  `http://{Server_IP}:8170/` 
+命令行下进入 portal 目录, 执行 `build.bat`(windows) 或`sh ./build.sh`(linux)，构建并启动以下容器：
+
+- apollo-portal 
+- apollo-portaldb
+
+登录网址:  `http://{portal_server_ip}:8170/` 
 
 默认登录账密:  `apollo / admin`
 
 登录后, 进入**管理员工具-系统参数**更新参数:
 
-| Key                        | Value                                    | 备注                    |
-| -------------------------- | ---------------------------------------- | ----------------------- |
-| apollo.portal.envs         | DEV,FAT,UAT,PRO                          | 修改完需要重启生效。    |
-| apollo.portal.meta.servers | {"DEV":"http://{ConfigService_IP}:8180"} | 修改完需要重启生效。    |
-| organizations              | [{"orgId":"IT","orgName":"IT"}]          | 修改完需要重新登录成效. |
+| Key                        | Value                                           | 备注                    |
+| -------------------------- | ----------------------------------------------- | ----------------------- |
+| apollo.portal.envs         | DEV,FAT,UAT,PRO                                 | 修改完需要重启生效。    |
+| apollo.portal.meta.servers | {"DEV":"http://{ConfigService_SERVER_IP}:8180"} | 修改完需要重启生效。    |
+| organizations              | [{"orgId":"IT","orgName":"IT"}]                 | 修改完需要重新登录成效. |
 
 参考: [调整服务端配置][2]
 
-> `apollo.portal.meta.servers` 配置各个环境的 Meta Server 地址，也即上面启动的 ConfigService 地址。
+> `apollo.portal.meta.servers` 配置各个环境的 Meta Server 地址，也即每个环境启动的 ConfigService 地址。
 
-修改参数并生效后，观察输出日志，确保和对应环境的 configService 成功建立连接，否则新建项目会出错，因为项目的配置必须保存在ConfigService 的DB中。
+修改参数并生效后，观察输出日志，确保和对应环境的 ConfigService 成功建立连接，否则新建项目会出错，因为项目的配置必须保存在各个环境 ConfigService 的DB中。
 
 
 
