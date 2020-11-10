@@ -43,17 +43,23 @@ apollo-configservice 启动需要1分钟左右，可观察日志等待完全启�
 ```sql
 USE ApolloConfigDB;
 
-UPDATE ServerConfig SET `Value` = 'http://{THIS_SERVER_IP}:8180/eureka/' WHERE `Key` = 'eureka.service.url';
+UPDATE ServerConfig SET `Value` = 'http://{Eureka_Service_IP}:8180/eureka/' WHERE `Key` = 'eureka.service.url';
 
 ```
 
-> 需要修改 `THIS_SERVER_IP`，这一步作用是为了让 AdminService 知道实际的 eureka 服务注册地址。
+> 需要修改 `Eureka_Service_IP`，这一步作用是为了让 AdminService 知道实际的 eureka 服务注册地址，也就是 ConfigService， 因为 ConfigService 集成了 eureka.。
 
 然后重启 apollo-adminservice 容器，观察日志确保没有错误，并注册成功。
 
-最后访问`http://{THIS_SERVER_IP}:8180`来查看 ConfigService 和 AdminService 服务注册情况。
+最后访问`http://{Eureka_Service_IP}:8180` 来查看 ConfigService 和 AdminService 服务注册情况。
 
-或者  `http://{THIS_SERVER_IP}:8180/services/config`和`http://{THIS_SERVER_IP}:8180/services/admin` 分别检查 ConfigService 和 AdminService 状态。
+或者访问以下地址确认服务运行状态：
+
+- `http://{Eureka_Service_IP}:8180/services/config`
+
+- ` http://{Eureka_Service_IP}:8180/services/admin` 
+
+分别检查 ConfigService 和 AdminService 状态，以及 homepageUrl。homepageUrl 就是客户端程序要直接连接的地址。
 
 
 
@@ -72,19 +78,17 @@ UPDATE ServerConfig SET `Value` = 'http://{THIS_SERVER_IP}:8180/eureka/' WHERE `
 
 登录后, 进入**管理员工具-系统参数**更新参数:
 
-| Key                        | Value                                           | 备注                    |
-| -------------------------- | ----------------------------------------------- | ----------------------- |
-| apollo.portal.envs         | DEV,FAT,UAT,PRO                                 | 修改完需要重启生效。    |
-| apollo.portal.meta.servers | {"DEV":"http://{ConfigService_SERVER_IP}:8180"} | 修改完需要重启生效。    |
-| organizations              | [{"orgId":"IT","orgName":"IT"}]                 | 修改完需要重新登录成效. |
+| Key                        | Value                                     | 备注                    |
+| -------------------------- | ----------------------------------------- | ----------------------- |
+| apollo.portal.envs         | DEV,FAT,UAT,PRO                           | 修改完需要重启生效。    |
+| apollo.portal.meta.servers | {"DEV":"http://{Eureka_Service_IP}:8180"} | 修改完需要重启生效。    |
+| organizations              | [{"orgId":"IT","orgName":"IT"}]           | 修改完需要重新登录成效. |
 
 参考: [调整服务端配置][2]
 
-> `apollo.portal.meta.servers` 配置各个环境的 Meta Server 地址，也即每个环境启动的 ConfigService 地址。
+> `apollo.portal.meta.servers` 配置各个环境的 Meta Server 地址，也即每个环境启动的 ConfigService 服务。
 
 修改参数并生效后，观察输出日志，确保和对应环境的 ConfigService 成功建立连接，否则新建项目会出错，因为项目的配置必须保存在各个环境 ConfigService 的DB中。
-
-
 
 
 
