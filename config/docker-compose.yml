@@ -10,7 +10,7 @@ services:
             SPRING_DATASOURCE_URL: jdbc:mysql://configdb:3306/ApolloConfigDB?characterEncoding=utf8
             SPRING_DATASOURCE_USERNAME: root 
             SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-            EUREKA_INSTANCE_HOME_PAGE_URL: http://${THIS_SERVER_IP}:8180
+            EUREKA_INSTANCE_HOME_PAGE_URL: http://${HOME_PAGE_HOST}:8180
         volumes:
             - /tmp/apollo-logs/config:/opt/logs
         ports:
@@ -28,7 +28,7 @@ services:
                 SPRING_DATASOURCE_URL: jdbc:mysql://configdb:3306/ApolloConfigDB?characterEncoding=utf8
                 SPRING_DATASOURCE_USERNAME: root 
                 SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-                EUREKA_INSTANCE_HOME_PAGE_URL: http://${THIS_SERVER_IP}:8190
+                EUREKA_INSTANCE_HOME_PAGE_URL: http://${HOME_PAGE_HOST}:8190
             volumes:
                 - /tmp/apollo-logs/admin:/opt/logs
             ports:
